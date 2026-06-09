@@ -1,0 +1,67 @@
+{
+  "uid": "netfly-logs-trace",
+  "title": "Netfly Logs and Trace",
+  "tags": ["netfly", "loki", "trace"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "project",
+        "type": "query",
+        "datasource": "Loki",
+        "query": "label_values(project)",
+        "current": {"text": "example-service", "value": "example-service"},
+        "includeAll": false
+      },
+      {
+        "name": "trace_id",
+        "type": "textbox",
+        "current": {"text": "", "value": ""}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Logs by Trace ID",
+      "type": "logs",
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "{project=\"$project\"} | trace_id=\"$trace_id\"",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP Channel Logs",
+      "type": "logs",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "targets": [
+        {
+          "expr": "{project=\"$project\", channel=\"http\"} | trace_id=\"$trace_id\""
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Datastore Channel Logs",
+      "type": "logs",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "targets": [
+        {
+          "expr": "{project=\"$project\", channel=~\"mysql|redis|rabbitmq\"} | trace_id=\"$trace_id\""
+        }
+      ]
+    }
+  ]
+}

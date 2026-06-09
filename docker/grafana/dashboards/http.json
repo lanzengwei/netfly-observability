@@ -1,0 +1,59 @@
+{
+  "uid": "netfly-http",
+  "title": "Netfly HTTP",
+  "tags": ["netfly", "http"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "project",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(netfly_http_requests_total, project)",
+        "current": {"text": "All", "value": "$__all"},
+        "includeAll": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests by Route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_http_requests_total{project=~\"$project\"}[1m])) by (route)",
+          "legendFormat": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Requests by Status",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_http_requests_total{project=~\"$project\"}[1m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Requests by Method",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_http_requests_total{project=~\"$project\"}[1m])) by (method)",
+          "legendFormat": "{{method}}"
+        }
+      ]
+    }
+  ]
+}

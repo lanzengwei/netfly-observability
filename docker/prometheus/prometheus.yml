@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: netfly-example
+    static_configs:
+      - targets: ['example-app:9502']
+        labels:
+          project: example-service

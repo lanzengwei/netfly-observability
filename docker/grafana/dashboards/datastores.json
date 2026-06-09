@@ -1,0 +1,83 @@
+{
+  "uid": "netfly-datastores",
+  "title": "Netfly DataStores",
+  "tags": ["netfly", "mysql", "redis", "rabbitmq"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "project",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(netfly_db_queries_total, project)",
+        "current": {"text": "All", "value": "$__all"},
+        "includeAll": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "MySQL QPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_db_queries_total{project=~\"$project\"}[1m])) by (operation)",
+          "legendFormat": "{{operation}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Redis QPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_redis_commands_total{project=~\"$project\"}[1m])) by (command)",
+          "legendFormat": "{{command}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "RabbitMQ Published",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_amqp_messages_published_total{project=~\"$project\"}[1m])) by (exchange)",
+          "legendFormat": "{{exchange}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "MySQL P95",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(netfly_db_query_duration_seconds_bucket{project=~\"$project\"}[5m])) by (le, operation))",
+          "legendFormat": "{{operation}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Redis P95",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(netfly_redis_command_duration_seconds_bucket{project=~\"$project\"}[5m])) by (le, command))",
+          "legendFormat": "{{command}}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+    "name": "netfly/netfly-observability",
+    "description": "Hyperf observability package for Prometheus metrics and Loki structured logging",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["hyperf", "prometheus", "loki", "observability", "metrics", "logging"],
+    "authors": [
+        {
+            "name": "Netfly",
+            "email": "dev@netfly.io"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "guzzlehttp/guzzle": "^7.0",
+        "hyperf/config": "^3.0",
+        "hyperf/context": "^3.0",
+        "hyperf/contract": "^3.0",
+        "hyperf/di": "^3.0",
+        "hyperf/event": "^3.0",
+        "hyperf/framework": "^3.0",
+        "hyperf/http-server": "^3.0",
+        "hyperf/logger": "^3.0",
+        "hyperf/process": "^3.0",
+        "hyperf/server": "^3.0",
+        "monolog/monolog": "^2.0|^3.0",
+        "promphp/prometheus_client_php": "^2.2"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "hyperf/testing": "^3.0",
+        "mockery/mockery": "^1.5",
+        "phpstan/phpstan": "^1.10",
+        "phpunit/phpunit": "^9.6"
+    },
+    "suggest": {
+        "hyperf/amqp": "Required for RabbitMQ metrics",
+        "hyperf/database": "Required for MySQL metrics",
+        "hyperf/redis": "Required for Redis metrics (CommandExecuted event or RedisAspect fallback)"
+    },
+    "autoload": {
+        "psr-4": {
+            "Netfly\\Observability\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Netfly\\Observability\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "hyperf": {
+            "config": "Netfly\\Observability\\ConfigProvider"
+        }
+    },
+    "minimum-stability": "stable",
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse",
+        "cs-fix": "php-cs-fixer fix",
+        "cs-check": "php-cs-fixer fix --dry-run --diff"
+    }
+}

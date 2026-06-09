@@ -1,0 +1,72 @@
+{
+  "uid": "netfly-overview",
+  "title": "Netfly Overview",
+  "tags": ["netfly", "observability"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "project",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(netfly_http_requests_total, project)",
+        "current": {"text": "All", "value": "$__all"},
+        "includeAll": true,
+        "multi": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP QPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_http_requests_total{project=~\"$project\"}[1m]))",
+          "legendFormat": "qps"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP P95 Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(netfly_http_request_duration_seconds_bucket{project=~\"$project\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(netfly_http_requests_total{project=~\"$project\",status=~\"5..\"}[1m])) / sum(rate(netfly_http_requests_total{project=~\"$project\"}[1m]))",
+          "legendFormat": "5xx ratio"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Swoole Coroutines",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(netfly_swoole_coroutine_num{project=~\"$project\"})",
+          "legendFormat": "coroutines"
+        }
+      ]
+    }
+  ]
+}

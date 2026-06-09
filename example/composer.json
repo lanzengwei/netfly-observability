@@ -1,0 +1,45 @@
+{
+    "name": "netfly/observability-example",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "hyperf/config": "^3.0",
+        "hyperf/di": "^3.0",
+        "hyperf/dispatcher": "^3.0",
+        "hyperf/event": "^3.0",
+        "hyperf/framework": "^3.0",
+        "hyperf/guzzle": "^3.0",
+        "hyperf/http-server": "^3.0",
+        "hyperf/logger": "^3.0",
+        "hyperf/memory": "^3.0",
+        "hyperf/process": "^3.0",
+        "hyperf/server": "^3.0",
+        "netfly/netfly-observability": "*"
+    },
+    "require-dev": {
+        "hyperf/devtool": "^3.0",
+        "hyperf/watcher": "^3.0"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "start": "php bin/hyperf.php start"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
