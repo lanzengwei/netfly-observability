@@ -55,7 +55,7 @@ class ConfigProvider
         $result['listeners'] = array_values(array_filter([
             class_exists('Hyperf\\Database\\Events\\QueryExecuted') ? DbQueryListener::class : null,
             RedisCommandListener::class,
-            AmqpListener::class,
+            class_exists('Hyperf\\Amqp\\Event\\AfterProduce') ? AmqpListener::class : null,
         ]));
 
         $result['middlewares'] = [

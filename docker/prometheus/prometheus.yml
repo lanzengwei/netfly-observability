@@ -3,8 +3,12 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: netfly-example
+  # 抓取业务 Hyperf 应用 Metrics
+  # 默认: http://192.168.32.50:9771/metrics
+  - job_name: netfly-app
+    metrics_path: /metrics
     static_configs:
-      - targets: ['example-app:9502']
+      - targets: ['192.168.32.50:9771']
         labels:
-          project: example-service
+          project: skeleton
+          instance: comment-sys-service
