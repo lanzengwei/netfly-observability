@@ -57,6 +57,9 @@ class AmqpListener implements ListenerInterface
         if (class_exists('Hyperf\\Amqp\\Event\\AfterProduce')) {
             $events[] = 'Hyperf\\Amqp\\Event\\AfterProduce';
         }
+        if (class_exists('Hyperf\\Amqp\\Event\\FailToProduce')) {
+            $events[] = 'Hyperf\\Amqp\\Event\\FailToProduce';
+        }
 
         return $events;
     }
@@ -99,6 +102,23 @@ class AmqpListener implements ListenerInterface
 
         if (class_exists('Hyperf\\Amqp\\Event\\FailToConsume') && $event instanceof \Hyperf\Amqp\Event\FailToConsume) {
             $this->recordConsume($event->getMessage()->getQueue(), 'fail');
+
+            return;
+        }
+
+        if (class_exists('Hyperf\\Amqp\\Event\\FailToProduce') && $event instanceof \Hyperf\Amqp\Event\FailToProduce) {
+            $message = $event->getMessage();
+            $this->collector->recordPublished(
+                $message->getExchange(),
+                $message->getRoutingKey() . ':fail'
+            );
+
+            if ($this->featureSwitch->isModuleEnabled('logging')) {
+                $this->loggerFactory->get('rabbitmq')->error('AMQP message publish failed', [
+                    'exchange' => $message->getExchange(),
+                    'routing_key' => $message->getRoutingKey(),
+                ]);
+            }
         }
     }
 

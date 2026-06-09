@@ -86,3 +86,21 @@ class AfterProduce
         };
     }
 }
+
+class FailToProduce
+{
+    public function getMessage(): object
+    {
+        return new class() {
+            public function getExchange(): string
+            {
+                return '';
+            }
+
+            public function getRoutingKey(): string
+            {
+                return '';
+            }
+        };
+    }
+}

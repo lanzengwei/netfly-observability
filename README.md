@@ -280,24 +280,186 @@ Promtail 中 `__path__` 填写容器内 Promtail 能访问到的路径，与 Hyp
 
 ---
 
-## loki 直推模式（可选）
+## loki 地址推送模式（直推，推荐）
 
-无需 Promtail，应用直接将日志 HTTP 推送到 Loki：
+应用通过 HTTP 将结构化日志**直接推送到 Loki**，**不需要 Promtail**，也不需要写本地日志文件。
+
+```
+Hyperf 应用  --HTTP POST-->  Loki (:3100)  -->  Grafana 查询
+```
+
+### 一、Docker 侧（Loki 服务）
+
+在 `docker/` 目录启动观测栈，确保 Loki 已暴露 3100 端口：
+
+```bash
+cd docker
+docker compose up -d prometheus loki grafana
+# loki 推送模式可不启动 promtail
+```
+
+Loki Push API 地址（本机 Docker 已映射到宿主机）：
+
+```
+http://192.168.32.50:3100/loki/api/v1/push
+```
+
+> 将 `192.168.32.50` 换成你部署 Loki 的机器 IP。若业务与 Loki 在同一台机器，也可用 `http://127.0.0.1:3100/loki/api/v1/push`。
+
+`docker/.env` 参考：
 
 ```dotenv
-OBSERVABILITY_LOG_DRIVER=loki
-LOKI_PUSH_URL=http://loki:3100/loki/api/v1/push
+LOKI_PUSH_URL=http://192.168.32.50:3100/loki/api/v1/push
 ```
 
-可在 `config/autoload/observability.php` 中调整批量大小与超时：
+### 二、业务项目侧（Hyperf .env）
+
+在项目根目录 `.env` 中配置：
+
+```dotenv
+# 开启可观测性
+OBSERVABILITY_ENABLED=true
+OBSERVABILITY_LOGGING=true
+
+# 使用 Loki 地址推送（关键）
+OBSERVABILITY_LOG_DRIVER=loki
+LOKI_PUSH_URL=http://192.168.32.50:3100/loki/api/v1/push
+
+# 项目标识（写入日志与指标，Grafana 按此筛选）
+OBSERVABILITY_PROJECT=comment-sys-service
+OBSERVABILITY_SERVICE=api
+```
+
+### 三、业务项目侧（observability.php）
+
+发布配置后检查 `config/autoload/observability.php`，确认 `logging` 段如下（一般无需手改，环境变量会自动生效）：
 
 ```php
-'loki' => [
-    'endpoint'   => env('LOKI_PUSH_URL', 'http://loki:3100/loki/api/v1/push'),
-    'batch_size' => 100,   // 累积条数后批量推送
-    'timeout'    => 2.0,   // HTTP 超时（秒）
+'logging' => [
+    'driver' => env('OBSERVABILITY_LOG_DRIVER', 'stdout'),
+    'file'   => env('OBSERVABILITY_LOG_FILE', BASE_PATH . '/runtime/logs/observability.log'),
+    'loki'   => [
+        'endpoint'   => env('LOKI_PUSH_URL', 'http://loki:3100/loki/api/v1/push'),
+        'batch_size' => 100,   // 累积条数后批量推送
+        'timeout'    => 2.0,    // HTTP 超时（秒）
+    ],
 ],
 ```
+
+`driver=loki` 时，`logging.file` 不会使用，可忽略。
+
+### 四、不同部署场景下的 LOKI_PUSH_URL
+
+| 场景 | LOKI_PUSH_URL 示例 |
+|------|-------------------|
+| 业务跑在宿主机，Loki 在 Docker（端口映射 3100） | `http://192.168.32.50:3100/loki/api/v1/push` |
+| 业务与 Loki 在同一台机器 | `http://127.0.0.1:3100/loki/api/v1/push` |
+| 业务在 Docker 容器，Loki 在另一容器（同 compose 网络） | `http://loki:3100/loki/api/v1/push` |
+| 业务在 Docker 容器，Loki 在宿主机映射端口（Windows/Mac） | `http://host.docker.internal:3100/loki/api/v1/push` |
+
+你的当前环境（业务 `192.168.32.50:9771`，Loki 在本机 Docker）推荐：
+
+```dotenv
+LOKI_PUSH_URL=http://192.168.32.50:3100/loki/api/v1/push
+```
+
+### 五、验证推送是否成功
+
+1. 重启 Hyperf 业务服务使 `.env` 生效
+2. 触发一次请求：`curl http://192.168.32.50:9771/demo`
+3. 在 Grafana → Explore → Loki，查询：
+
+```logql
+{project="comment-sys-service"}
+```
+
+按 trace_id 查链路：
+
+```logql
+{project="comment-sys-service"} | trace_id="你的32位trace_id"
+```
+
+或在 Loki API 验证：
+
+```bash
+curl -G "http://192.168.32.50:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={project="comment-sys-service"}' \
+  --data-urlencode 'limit=5'
+```
+
+### 六、loki 模式配置清单
+
+| 配置项 | 是否必须 | 说明 |
+|--------|---------|------|
+| `OBSERVABILITY_ENABLED=true` | 是 | 开启包 |
+| `OBSERVABILITY_LOGGING=true` | 是 | 开启日志 |
+| `OBSERVABILITY_LOG_DRIVER=loki` | 是 | 切换为地址推送 |
+| `LOKI_PUSH_URL` | 是 | Loki Push API 完整地址 |
+| `OBSERVABILITY_PROJECT` | 推荐 | Grafana 按项目筛选 |
+| Promtail | **不需要** | 直推模式可停用 |
+
+### 七、常见问题
+
+**Q：推送失败 / 日志进不了 Grafana？**
+
+1. 确认 Loki 容器运行：`docker ps | grep loki`
+2. 确认业务能访问 Loki：`curl http://192.168.32.50:3100/ready` 应返回 `ready`
+3. 确认 `LOKI_PUSH_URL` 含完整路径 `/loki/api/v1/push`
+4. 容器内业务不要用 `127.0.0.1` 指 Loki，应使用宿主机 IP 或 `host.docker.internal`
+5. 修改 `.env` 后需**重启 Hyperf 进程**
+
+**Q：推送的日志里有什么字段？**
+
+每条日志 JSON 含：`timestamp`、`level`、`message`、`project`、`service`、`trace_id`、`span_id`、`channel`、`context`。Loki 侧 `project`/`service`/`level`/`channel` 作为 label，`trace_id` 作为 structured metadata。
+
+---
+
+## RabbitMQ 指标没有数据？
+
+本包采集的是 **Hyperf 应用层 AMQP 事件**（生产/消费消息时），**不是** RabbitMQ 服务端自身的队列深度、连接数等 Broker 指标。
+
+### 前置条件（业务项目）
+
+1. 安装 Hyperf AMQP 组件：
+   ```bash
+   composer require hyperf/amqp
+   ```
+
+2. `.env` 开启 RabbitMQ 模块：
+   ```dotenv
+   OBSERVABILITY_RABBITMQ=true
+   ```
+
+3. 必须有实际的 **生产或消费** 行为（`Producer::produce()` / `@Consumer` 消费进程在处理消息），指标才会出现。
+
+4. 若 AMQP 消费者在**独立进程**中运行，该进程同样需加载 `netfly-observability` 且 `OBSERVABILITY_ENABLED=true`。
+
+### 验证指标是否生效
+
+```bash
+curl http://192.168.32.50:9771/metrics | grep netfly_amqp
+```
+
+有数据时应看到：
+
+```
+netfly_amqp_messages_published_total{project="skeleton",exchange="...",routing_key="..."}
+netfly_amqp_messages_consumed_total{project="skeleton",queue="...",result="success"}
+```
+
+若 **完全没有** `netfly_amqp_*` 行，说明尚未触发过 AMQP 事件，常见原因：
+
+| 原因 | 处理 |
+|------|------|
+| 未安装 `hyperf/amqp` | `composer require hyperf/amqp` 后重启 |
+| `OBSERVABILITY_RABBITMQ=false` | 改为 `true` 并重启 |
+| 使用了 `hyperf/async-queue` 而非 AMQP | 异步队列不走 RabbitMQ 事件，本包不会采集 |
+| 消费者 `@Consumer(enable=false)` | 消费者未启动，不会产生消费指标 |
+| 仅连接 RabbitMQ 但未发/收消息 | 手动触发一次生产或消费 |
+
+### Grafana 面板筛选
+
+指标中的 `project` 来自业务 `.env` 的 `OBSERVABILITY_PROJECT`（你当前环境为 `skeleton`），Grafana DataStores 面板请选择对应 project。
 
 ---
 
@@ -362,7 +524,7 @@ docker compose up -d --build
 | 服务 | 地址 |
 |------|------|
 | Example App | http://localhost:9501 |
-| Metrics | http://localhost:9502/metrics |
+| Metrics | http://localhost:9771/metrics |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Loki | http://localhost:3100 |
@@ -371,7 +533,7 @@ docker compose up -d --build
 
 ```bash
 curl http://localhost:9501/demo -H "X-Trace-Id: abcdef0123456789abcdef0123456789"
-curl http://localhost:9502/metrics | grep netfly_
+curl http://localhost:9771/metrics | grep netfly_
 ```
 
 ---

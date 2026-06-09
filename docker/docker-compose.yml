@@ -1,12 +1,23 @@
+# 观测栈启动（Loki 地址推送模式，无需 Promtail）：
+#   docker compose up -d prometheus loki grafana
+#
+# file 日志采集模式（需要 Promtail）：
+#   docker compose --profile file-logs up -d
+
 services:
   prometheus:
     image: prom/prometheus:v2.54.1
+    env_file:
+      - .env
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - observability
+    restart: unless-stopped
 
   loki:
     image: grafana/loki:3.2.1
@@ -15,20 +26,26 @@ services:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki
     ports:
-      - "3100:3100"
+      - "0.0.0.0:3100:3100"
     networks:
       - observability
+    restart: unless-stopped
 
+  # 仅 OBSERVABILITY_LOG_DRIVER=file 时需要；loki 直推模式不必启动
   promtail:
+    profiles: ["file-logs"]
     image: grafana/promtail:3.2.1
     command: -config.file=/etc/promtail/promtail-config.yml
+    env_file:
+      - .env
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
-      - example-logs:/var/log/example:ro
+      # - ${LOG_HOST_PATH:-./logs}:/var/log/app:ro
     depends_on:
       - loki
     networks:
       - observability
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:11.3.0
@@ -46,8 +63,10 @@ services:
       - loki
     networks:
       - observability
+    restart: unless-stopped
 
   example-app:
+    profiles: ["demo"]
     build:
       context: ..
       dockerfile: example/Dockerfile
@@ -55,13 +74,14 @@ services:
       APP_NAME: example-service
       OBSERVABILITY_PROJECT: example-service
       OBSERVABILITY_SERVICE: api
-      OBSERVABILITY_LOG_DRIVER: file
-      OBSERVABILITY_METRICS_PORT: 9502
+      OBSERVABILITY_LOG_DRIVER: loki
+      LOKI_PUSH_URL: http://loki:3100/loki/api/v1/push
+      OBSERVABILITY_METRICS_PORT: 9771
     volumes:
-      - example-logs:/opt/www/runtime/logs
+      - example-logs:/opt/www/example/runtime/logs
     ports:
       - "9501:9501"
-      - "9502:9502"
+      - "9772:9771"
     depends_on:
       - loki
     networks:
