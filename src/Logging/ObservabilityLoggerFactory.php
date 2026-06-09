@@ -85,6 +85,10 @@ class ObservabilityLoggerFactory
                 ? (string) $this->config->get('observability.logging.file', 'php://stdout')
                 : 'php://stdout';
 
+            if ($driver === 'file') {
+                $this->ensureLogDirectoryExists($target);
+            }
+
             $handler = new StreamHandler($target, Logger::DEBUG);
             $handler->setFormatter($formatter);
             $logger->pushHandler($handler);
@@ -98,5 +102,17 @@ class ObservabilityLoggerFactory
     public function isLoggingEnabled(): bool
     {
         return $this->featureSwitch->isModuleEnabled('logging');
+    }
+
+    private function ensureLogDirectoryExists(string $target): void
+    {
+        if (strpos($target, '://') !== false) {
+            return;
+        }
+
+        $directory = dirname($target);
+        if ($directory !== '' && ! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
     }
 }

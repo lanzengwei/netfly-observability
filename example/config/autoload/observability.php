@@ -27,7 +27,7 @@ return [
 
     'logging' => [
         'driver' => env('OBSERVABILITY_LOG_DRIVER', 'file'),
-        'file' => BASE_PATH . '/runtime/logs/observability.log',
+        'file' => env('OBSERVABILITY_LOG_FILE', BASE_PATH . '/runtime/logs/observability.log'),
         'loki' => [
             'endpoint' => env('LOKI_PUSH_URL', 'http://loki:3100/loki/api/v1/push'),
             'batch_size' => 10,
